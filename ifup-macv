@@ -1,0 +1,59 @@
+#!/bin/bash
+#
+# Derived from initscripts-macvlan
+# Copyright (C) 2014 Lars Kellogg-Stedman
+#
+# Adopted by Oleksandr Natalenko <o.natalenko@lanet.ua>
+# Copyright (C) 2016 Lanet Network
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+. /etc/init.d/functions
+
+cd /etc/sysconfig/network-scripts
+. ./network-functions
+
+[ -f ../network ] && . ../network
+
+CONFIG=${1}
+
+need_config ${CONFIG}
+
+source_config
+
+OTHERSCRIPT="/etc/sysconfig/network-scripts/ifup-${REAL_DEVICETYPE}"
+
+if [ ! -x ${OTHERSCRIPT} ]; then
+	OTHERSCRIPT="/etc/sysconfig/network-scripts/ifup-eth"
+fi
+
+is_available_wait ${MACV_TEAM} ${DEVTIMEOUT} || {
+	/etc/sysconfig/network-scripts/ifup-Team /etc/sysconfig/network-scripts/ifcfg-${MACV_TEAM} $2
+}
+
+MACV_MASTER="${MACV_TEAM}.${MACV_VLAN}"
+
+is_available_wait ${MACV_MASTER} ${DEVTIMEOUT} || {
+	/etc/sysconfig/network-scripts/ifup /etc/sysconfig/network-scripts/ifcfg-${MACV_MASTER} $2
+}
+
+ip link add \
+	link ${MACV_MASTER} \
+	name ${DEVICE} \
+	address ${MACV_MAC} \
+	type ${MACV_TYPE} \
+	mode ${MACV_MODE}
+
+${OTHERSCRIPT} ${CONFIG}
+
